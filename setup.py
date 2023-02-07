@@ -21,6 +21,7 @@ REQUIRED = [
     'pandas>=1.5',
     'pyproj',
     'pytest',
+    'requests',
     'SALib',
     'scipy',
     'sqlalchemy',
