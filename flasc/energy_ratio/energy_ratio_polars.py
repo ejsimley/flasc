@@ -405,6 +405,7 @@ def _compute_energy_ratio_bootstrap(df_,
                          ws_max = 50.0,
                          bin_cols_in = ['wd_bin','ws_bin'],
                          N = 1,
+                         confidence = 95
                          ):
     
     """
@@ -425,6 +426,8 @@ def _compute_energy_ratio_bootstrap(df_,
         ws_max (float): The maximum wind speed to use.
         bin_cols_in (list[str]): A list of column names to use for the wind speed and wind direction bins.
         N (int): The number of bootstrap samples to use.
+        confidence (float): The confidence interval to use for quantifying uncertainty
+            (percentage). Defaults to 90%.
 
     Returns:
         pl.DataFrame: A dataframe containing the energy ratio between the two sets of turbines.
@@ -455,8 +458,9 @@ def _compute_energy_ratio_bootstrap(df_,
     return (df_concat
             .groupby(['wd_bin'], maintain_order=True)
             .agg([pl.first(n) for n in df_names_with_uplift] + 
-                    [pl.quantile(n, 0.95).alias(n + "_ub") for n in df_names_with_uplift] +
-                    [pl.quantile(n, 0.05).alias(n + "_lb") for n in df_names_with_uplift] + 
+                    [pl.quantile(n, 50 + 0.5 * confidence).alias(n + "_ub") for n in df_names_with_uplift] +
+                    [pl.quantile(n, 50 - 0.5 * confidence).alias(n + "_lb") for n in df_names_with_uplift] + 
+                    [pl.std(n).alias(n + "_se") for n in df_names_with_uplift] + 
                     [pl.first(f'count_{n}') for n in df_names]
                 )
             .sort('wd_bin')
@@ -480,6 +484,7 @@ def compute_energy_ratio(df_,
                          ws_max = 50.0,
                          bin_cols_in = ['wd_bin','ws_bin'],
                          N = 1,
+                         confidence = 95
                          ):
     
     """
@@ -503,6 +508,8 @@ def compute_energy_ratio(df_,
         ws_max (float): The maximum wind speed to use.
         bin_cols_in (list[str]): A list of column names to use for the wind speed and wind direction bins.
         N (int): The number of bootstrap samples to use.
+        confidence (float): The confidence interval to use for quantifying uncertainty
+            (percentage). Defaults to 90%.
 
     Returns:
         pl.DataFrame: A dataframe containing the energy ratio between the two sets of turbines.
@@ -604,7 +611,8 @@ def compute_energy_ratio(df_,
                             ws_min,
                             ws_max,
                             bin_cols_in,
-                            N)
+                            N,
+                            confidence)
 
     # Return the results as an EnergyRatioResult object
     return EnergyRatioResult(df_res, 
@@ -621,7 +629,8 @@ def compute_energy_ratio(df_,
                                 ws_min,
                                 ws_max,
                                 bin_cols_in,
-                                N)
+                                N,
+                                confidence)
 
 
 
@@ -725,6 +734,7 @@ def _compute_uplift_in_region_bootstrap(df_,
                          ws_max = 50.0,
                          bin_cols_in = ['wd_bin','ws_bin'],
                          N = 20,
+                         confidence = 95
                          ):
     
     """
@@ -745,6 +755,8 @@ def _compute_uplift_in_region_bootstrap(df_,
         wd_max (float): The maximum wind direction to use.
         bin_cols_in (list[str]): A list of column names to use for the wind speed and wind direction bins.
         N (int): The number of bootstrap samples to use.
+        confidence (float): The confidence interval to use for quantifying uncertainty
+            (percentage). Defaults to 90%. 
 
     Returns:
         pl.DataFrame: A dataframe containing the energy uplift
@@ -767,14 +779,17 @@ def _compute_uplift_in_region_bootstrap(df_,
     
     return pl.DataFrame({
         'delta_energy_exp':df_concat['delta_energy'][0],
-        'delta_energy_ub':df_concat['delta_energy'].quantile(0.95),
-        'delta_energy_lb':df_concat['delta_energy'].quantile(0.05),
+        'delta_energy_ub':df_concat['delta_energy'].quantile(50 + 0.5 * confidence),
+        'delta_energy_lb':df_concat['delta_energy'].quantile(50 - 0.5 * confidence),
+        'delta_energy_se':df_concat['delta_energy'].std(),
         'base_test_energy_exp':df_concat['base_test_energy'][0],
-        'base_test_energy_ub':df_concat['base_test_energy'].quantile(0.95),
-        'base_test_energy_lb':df_concat['base_test_energy'].quantile(0.05),
+        'base_test_energy_ub':df_concat['base_test_energy'].quantile(50 + 0.5 * confidence),
+        'base_test_energy_lb':df_concat['base_test_energy'].quantile(50 - 0.5 * confidence),
+        'base_test_energy_se':df_concat['base_test_energy'].std(),
         'uplift_exp':df_concat['uplift'][0],
-        'uplift_ub':df_concat['uplift'].quantile(0.95),
-        'uplift_lb':df_concat['uplift'].quantile(0.05),
+        'uplift_ub':df_concat['uplift'].quantile(50 + 0.5 * confidence),
+        'uplift_lb':df_concat['uplift'].quantile(50 - 0.5 * confidence),
+        'uplift_se':df_concat['uplift'].std(),
     })
 
 
@@ -795,6 +810,7 @@ def compute_uplift_in_region(df_,
                          ws_max = 50.0,
                          bin_cols_in = ['wd_bin','ws_bin'],
                          N = 1,
+                         confidence = 95
                          ):
     
     """
@@ -818,6 +834,8 @@ def compute_uplift_in_region(df_,
         ws_max (float): The maximum wind speed to use.
         bin_cols_in (list[str]): A list of column names to use for the wind speed and wind direction bins.
         N (int): The number of bootstrap samples to use.
+        confidence (float): The confidence interval to use for quantifying uncertainty
+            (percentage). Defaults to 90%.
 
     Returns:
         pl.DataFrame: A dataframe containing the energy ratio between the two sets of turbines.
@@ -941,7 +959,8 @@ def compute_uplift_in_region(df_,
                                 ws_min,
                                 ws_max,
                                 bin_cols_in,
-                                N)
+                                N,
+                                confidence)
 
 
 
@@ -964,7 +983,8 @@ class EnergyRatioResult:
                     ws_min,
                     ws_max,
                     bin_cols_in,
-                    N
+                    N,
+                    confidence
                   ):
 
         self.df_result = df_result
@@ -983,6 +1003,7 @@ class EnergyRatioResult:
         self.ws_max = ws_max
         self.bin_cols_in = bin_cols_in
         self.N = N
+        self.confidence = confidence
 
         # self.df_freq = self._compute_df_freq()
 
